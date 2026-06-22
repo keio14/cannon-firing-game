@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "motivation",
+      "runtimeExecutable": "powershell",
+      "runtimeArgs": ["-NoProfile", "-Command", "$l=[System.Net.HttpListener]::new();$l.Prefixes.Add('http://localhost:8770/');$l.Start();$root='D:\\Claude\\Motivation';while($l.IsListening){$c=$l.GetContext();$p=$c.Request.Url.LocalPath.TrimStart('/');if(!$p){$p='index.html'};$f=Join-Path $root $p;if(Test-Path $f -PathType Leaf){$b=[IO.File]::ReadAllBytes($f);if($f.EndsWith('.html')){$c.Response.ContentType='text/html; charset=utf-8'}elseif($f.EndsWith('.js')){$c.Response.ContentType='application/javascript'};$c.Response.OutputStream.Write($b,0,$b.Length)}else{$c.Response.StatusCode=404};$c.Response.Close()}"],
+      "port": 8770
+    }
+  ]
+}
