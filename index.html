@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Daily Spark — Motivation</title>
+<style>
+  :root {
+    --gold: #ffd34d;
+    --classic: #ffcf6b;
+    --modern: #8ff0c4;
+    --ink: #ffffff;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    color: var(--ink);
+    overflow: hidden; /* the .feed scrolls, not the body */
+    background: #14432f;
+  }
+
+  /* ---------- Rainforest hiking background (fixed, SVG-drawn) ---------- */
+  #scene {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+    pointer-events: none;
+  }
+  #scene svg { width: 100%; height: 100%; display: block; }
+
+  /* ---------- Top bar ---------- */
+  header {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: max(14px, env(safe-area-inset-top)) 20px 14px;
+  }
+  .brand {
+    font-size: clamp(1.05rem, 3.5vw, 1.35rem);
+    font-weight: 800;
+    letter-spacing: -0.3px;
+    text-shadow: 0 2px 10px rgba(0,0,0,0.45);
+  }
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(8, 30, 20, 0.45);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(255,255,255,0.18);
+    border-radius: 999px;
+    padding: 8px 14px;
+    font-weight: 700;
+    font-size: 0.95rem;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.25);
+  }
+  .pill small { font-weight: 500; opacity: 0.8; }
+
+  /* ---------- Paged feed (one quote per screen, snap scroll) ---------- */
+  .feed {
+    position: relative;
+    z-index: 10;
+    height: 100vh;
+    height: 100dvh;
+    overflow-y: scroll;
+    scroll-snap-type: y mandatory;
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+  }
+  .page {
+    height: 100vh;
+    height: 100dvh;
+    scroll-snap-align: start;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: clamp(72px, 12vh, 120px) 18px clamp(40px, 8vh, 80px);
+  }
+
+  /* ---------- Glass quote card ---------- */
+  .card {
+    width: min(92%, 680px);
+    max-height: calc(100dvh - 150px);
+    overflow-y: auto;
+    background: rgba(8, 30, 20, 0.42);
+    backdrop-filter: blur(9px);
+    -webkit-backdrop-filter: blur(9px);
+    border: 1px solid rgba(255,255,255,0.18);
+    border-radius: 26px;
+    padding: clamp(24px, 5vw, 46px);
+    box-shadow: 0 22px 55px rgba(0,0,0,0.4);
+    text-align: center;
+    opacity: 1;
+    animation: fade 0.7s ease;
+  }
+  @keyframes fade { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+
+  .badge {
+    display: inline-block;
+    font-size: 0.72rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.7px;
+    padding: 6px 13px;
+    border-radius: 999px;
+    color: #0d2a1d;
+    margin-bottom: 20px;
+  }
+  .badge.classic { background: var(--classic); }
+  .badge.modern  { background: var(--modern); }
+
+  .quote {
+    font-size: clamp(1.4rem, 4.4vw, 2.5rem);
+    line-height: 1.36;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+    text-shadow: 0 2px 14px rgba(0,0,0,0.4);
+  }
+  .author {
+    margin-top: 18px;
+    font-size: clamp(0.95rem, 2.6vw, 1.1rem);
+    font-style: italic;
+    opacity: 0.9;
+  }
+
+  /* ---------- Controls ---------- */
+  .controls {
+    margin-top: 26px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    background: rgba(255,255,255,0.14);
+    border: 1px solid rgba(255,255,255,0.28);
+    color: #fff;
+    font-weight: 600;
+    font-size: 0.92rem;
+    padding: 10px 16px;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background 0.15s ease, transform 0.1s ease;
+  }
+  .btn:hover { background: rgba(255,255,255,0.26); }
+  .btn:active { transform: scale(0.96); }
+
+  .stars { display: inline-flex; gap: 3px; align-items: center; }
+  .star {
+    font-size: 1.55rem;
+    line-height: 1;
+    color: rgba(255,255,255,0.34);
+    cursor: pointer;
+    user-select: none;
+    transition: transform 0.1s ease, color 0.1s ease;
+  }
+  .star:hover { transform: scale(1.18); }
+  .star.on { color: var(--gold); text-shadow: 0 0 12px rgba(255,211,77,0.6); }
+
+  .toast {
+    margin-top: 14px;
+    min-height: 1.1em;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--modern);
+  }
+
+  /* ---------- Scroll hint (first page) ---------- */
+  .hint {
+    position: absolute;
+    bottom: max(22px, env(safe-area-inset-bottom));
+    left: 0; right: 0;
+    text-align: center;
+    font-size: 0.85rem;
+    font-weight: 600;
+    opacity: 0.9;
+    text-shadow: 0 2px 8px rgba(0,0,0,0.5);
+    animation: bob 1.6s ease-in-out infinite;
+    pointer-events: none;
+  }
+  .hint .chev { display: block; font-size: 1.4rem; line-height: 1; }
+  @keyframes bob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(7px); } }
+
+  /* ---------- End page ---------- */
+  .end { text-align: center; }
+  .end h2 { font-size: clamp(1.6rem, 5vw, 2.4rem); text-shadow: 0 2px 14px rgba(0,0,0,0.4); }
+  .end p { margin-top: 12px; opacity: 0.9; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .card, .hint { animation: none; }
+  }
+</style>
+</head>
+<body>
+
+  <!-- Rainforest hiking scene -->
+  <div id="scene">
+    <svg viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%"  stop-color="#bfeecf"/>
+          <stop offset="40%" stop-color="#6fc79a"/>
+          <stop offset="75%" stop-color="#2f7d57"/>
+          <stop offset="100%" stop-color="#14432f"/>
+        </linearGradient>
+        <radialGradient id="sun" cx="22%" cy="14%" r="40%">
+          <stop offset="0%"  stop-color="#fff7d6" stop-opacity="0.9"/>
+          <stop offset="100%" stop-color="#fff7d6" stop-opacity="0"/>
+        </radialGradient>
+        <radialGradient id="mist" cx="50%" cy="50%" r="50%">
+          <stop offset="0%"  stop-color="#ffffff" stop-opacity="0.5"/>
+          <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+        </radialGradient>
+      </defs>
+
+      <rect width="1440" height="900" fill="url(#sky)"/>
+      <rect width="1440" height="900" fill="url(#sun)"/>
+
+      <!-- distant mountains -->
+      <path d="M0,400 C240,318 470,360 720,330 C960,302 1200,362 1440,322 L1440,900 L0,900 Z" fill="#5aa37f" opacity="0.85"/>
+      <ellipse cx="500" cy="430" rx="430" ry="70" fill="url(#mist)"/>
+      <!-- mid hills -->
+      <path d="M0,520 C200,462 520,502 760,472 C1040,438 1240,520 1440,482 L1440,900 L0,900 Z" fill="#3f8c66"/>
+      <ellipse cx="980" cy="545" rx="480" ry="64" fill="url(#mist)"/>
+      <!-- front hills -->
+      <path d="M0,642 C260,602 520,680 800,632 C1080,588 1300,662 1440,620 L1440,900 L0,900 Z" fill="#2b6e4f"/>
+      <!-- foreground ridge -->
+      <path d="M0,782 C220,742 480,802 760,762 C1040,730 1260,792 1440,760 L1440,900 L0,900 Z" fill="#1c5038"/>
+
+      <!-- simple fir trees on the foreground ridge -->
+      <g fill="#143d2b">
+        <path d="M120,772 l24,46 -48,0 Z M120,792 l30,52 -60,0 Z"/>
+        <path d="M300,766 l22,42 -44,0 Z M300,784 l28,48 -56,0 Z"/>
+        <path d="M560,772 l24,46 -48,0 Z M560,792 l30,52 -60,0 Z"/>
+        <path d="M860,766 l22,42 -44,0 Z M860,784 l28,48 -56,0 Z"/>
+        <path d="M1120,772 l24,46 -48,0 Z M1120,792 l30,52 -60,0 Z"/>
+        <path d="M1320,768 l22,42 -44,0 Z M1320,786 l28,48 -56,0 Z"/>
+      </g>
+    </svg>
+  </div>
+
+  <header>
+    <span class="brand">✨ Daily Spark</span>
+    <span class="pill" title="Days in a row you've engaged with motivation">
+      🔥 <span class="num" id="streakNum">0</span> <small>day streak</small>
+    </span>
+  </header>
+
+  <div class="feed" id="feed"></div>
+
+<script>
+/* ============================================================
+   Daily Spark v2 — one quote per page, rainforest theme
+   Famous people only · EN default with VI translate · share · streak
+   ============================================================ */
+
+/* ---------- 1. Content: famous quotes, English + Vietnamese ---------- */
+const QUOTES = [
+  // --- Classic (long ago) ---
+  { author: "Marcus Aurelius", era: "classic",
+    en: "You have power over your mind — not outside events. Realize this, and you will find strength.",
+    vi: "Bạn làm chủ tâm trí mình — không phải những điều bên ngoài. Hiểu được điều này, bạn sẽ tìm thấy sức mạnh." },
+  { author: "Confucius", era: "classic",
+    en: "It does not matter how slowly you go as long as you do not stop.",
+    vi: "Đi chậm đến đâu cũng không sao, miễn là bạn không dừng lại." },
+  { author: "Seneca", era: "classic",
+    en: "We suffer more often in imagination than in reality.",
+    vi: "Chúng ta đau khổ trong tưởng tượng nhiều hơn là trong thực tế." },
+  { author: "Lao Tzu", era: "classic",
+    en: "The journey of a thousand miles begins with a single step.",
+    vi: "Hành trình vạn dặm bắt đầu từ một bước chân." },
+  { author: "Friedrich Nietzsche", era: "classic",
+    en: "He who has a why to live can bear almost any how.",
+    vi: "Người có một lý do để sống có thể chịu đựng gần như mọi hoàn cảnh." },
+  { author: "Aristotle", era: "classic",
+    en: "Knowing yourself is the beginning of all wisdom.",
+    vi: "Hiểu chính mình là khởi đầu của mọi trí tuệ." },
+  { author: "Henry Ford", era: "classic",
+    en: "Whether you think you can, or you think you can't — you're right.",
+    vi: "Dù bạn nghĩ mình làm được hay không làm được — bạn đều đúng." },
+  { author: "Confucius", era: "classic",
+    en: "Our greatest glory is not in never falling, but in rising every time we fall.",
+    vi: "Vinh quang lớn nhất không phải là không bao giờ ngã, mà là đứng dậy sau mỗi lần ngã." },
+  { author: "Thomas Edison", era: "classic",
+    en: "I have not failed. I've just found 10,000 ways that won't work.",
+    vi: "Tôi chưa hề thất bại. Tôi chỉ tìm ra 10.000 cách không hiệu quả." },
+  { author: "Ralph Waldo Emerson", era: "classic",
+    en: "What lies behind us and what lies before us are tiny matters compared to what lies within us.",
+    vi: "Những gì phía sau và phía trước ta đều nhỏ bé so với những gì bên trong ta." },
+  { author: "Winston Churchill", era: "classic",
+    en: "Success is not final, failure is not fatal: it is the courage to continue that counts.",
+    vi: "Thành công không phải đích cuối, thất bại không phải dấu chấm hết: điều quan trọng là can đảm để tiếp tục." },
+  { author: "Albert Einstein", era: "classic",
+    en: "In the middle of difficulty lies opportunity.",
+    vi: "Giữa khó khăn luôn ẩn chứa cơ hội." },
+  { author: "Theodore Roosevelt", era: "classic",
+    en: "Believe you can and you're halfway there.",
+    vi: "Hãy tin rằng bạn làm được, và bạn đã đi được nửa đường." },
+  { author: "Japanese Proverb", era: "classic",
+    en: "Fall seven times, stand up eight.",
+    vi: "Ngã bảy lần, đứng dậy tám lần." },
+  { author: "Benjamin Franklin", era: "classic",
+    en: "Tell me and I forget. Teach me and I remember. Involve me and I learn.",
+    vi: "Nói cho tôi, tôi sẽ quên. Dạy tôi, tôi sẽ nhớ. Cho tôi tham gia, tôi sẽ học được." },
+
+  // --- Modern (now) ---
+  { author: "Steve Jobs", era: "modern",
+    en: "Your time is limited, so don't waste it living someone else's life.",
+    vi: "Thời gian của bạn có hạn, đừng lãng phí nó để sống cuộc đời của người khác." },
+  { author: "Eleanor Roosevelt", era: "modern",
+    en: "The future belongs to those who believe in the beauty of their dreams.",
+    vi: "Tương lai thuộc về những người tin vào vẻ đẹp của ước mơ mình." },
+  { author: "Oprah Winfrey", era: "modern",
+    en: "You become what you believe.",
+    vi: "Bạn trở thành điều bạn tin tưởng." },
+  { author: "Michelle Obama", era: "modern",
+    en: "When they go low, we go high.",
+    vi: "Khi người ta hạ thấp mình, ta cứ vươn lên cao." },
+  { author: "Martin Luther King Jr.", era: "modern",
+    en: "If you can't fly then run, if you can't run then walk, but whatever you do, keep moving forward.",
+    vi: "Nếu không bay được thì chạy, không chạy được thì đi, nhưng dù làm gì, hãy luôn tiến về phía trước." },
+  { author: "Maya Angelou", era: "modern",
+    en: "Success is liking yourself, liking what you do, and liking how you do it.",
+    vi: "Thành công là yêu chính mình, yêu việc mình làm và yêu cách mình làm." },
+  { author: "Vince Lombardi", era: "modern",
+    en: "It's not whether you get knocked down, it's whether you get up.",
+    vi: "Vấn đề không phải bạn bị quật ngã, mà là bạn có đứng dậy hay không." },
+  { author: "Jim Rohn", era: "modern",
+    en: "If you really want to do something, you'll find a way. If you don't, you'll find an excuse.",
+    vi: "Nếu thực sự muốn làm điều gì đó, bạn sẽ tìm ra cách. Nếu không, bạn sẽ tìm ra lý do." },
+  { author: "Sam Levenson", era: "modern",
+    en: "Don't watch the clock; do what it does. Keep going.",
+    vi: "Đừng nhìn đồng hồ; hãy làm như nó — cứ tiếp tục đi." },
+  { author: "Wayne Gretzky", era: "modern",
+    en: "You miss 100% of the shots you don't take.",
+    vi: "Bạn bỏ lỡ 100% những cú sút mà bạn không thực hiện." },
+  { author: "Mark Twain", era: "modern",
+    en: "The secret of getting ahead is getting started.",
+    vi: "Bí quyết để tiến lên là bắt đầu." },
+  { author: "Roy T. Bennett", era: "modern",
+    en: "Great things never came from comfort zones.",
+    vi: "Những điều vĩ đại không bao giờ đến từ vùng an toàn." },
+  { author: "Tim Notke", era: "modern",
+    en: "Hard work beats talent when talent doesn't work hard.",
+    vi: "Sự chăm chỉ đánh bại tài năng khi tài năng không chịu nỗ lực." },
+  { author: "George Addair", era: "modern",
+    en: "Everything you've ever wanted is on the other side of fear.",
+    vi: "Mọi điều bạn từng khao khát đều nằm ở phía bên kia của nỗi sợ." },
+  { author: "Sheryl Sandberg", era: "modern",
+    en: "Done is better than perfect.",
+    vi: "Hoàn thành tốt hơn là hoàn hảo." },
+];
+// Stable id per quote so ratings persist across reloads regardless of shuffle.
+QUOTES.forEach((q, i) => { q.id = "q" + i; });
+
+/* ---------- 2. Persistence (localStorage, guarded) ---------- */
+const RATINGS_KEY = "dailyspark_ratings";
+const STREAK_KEY = "dailyspark_streak";
+
+function loadJSON(key, fallback) {
+  try { return JSON.parse(localStorage.getItem(key)) || fallback; }
+  catch { return fallback; }
+}
+function saveJSON(key, val) {
+  try { localStorage.setItem(key, JSON.stringify(val)); } catch (e) {}
+}
+
+let ratings = loadJSON(RATINGS_KEY, {});
+let streakState = loadJSON(STREAK_KEY, { count: 0, lastDay: null });
+
+function todayKey() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+function dayDiff(aKey, bKey) {
+  return Math.round((new Date(bKey + "T00:00:00") - new Date(aKey + "T00:00:00")) / 86400000);
+}
+
+// Rating a quote = today's "learn" engagement.
+function registerEngagement() {
+  const today = todayKey();
+  if (streakState.lastDay === today) return;
+  if (streakState.lastDay && dayDiff(streakState.lastDay, today) === 1) streakState.count += 1;
+  else streakState.count = 1;
+  streakState.lastDay = today;
+  saveJSON(STREAK_KEY, streakState);
+  renderStreak();
+}
+function reconcileStreakOnLoad() {
+  if (streakState.lastDay && dayDiff(streakState.lastDay, todayKey()) > 1) {
+    streakState = { count: 0, lastDay: null };
+    saveJSON(STREAK_KEY, streakState);
+  }
+  renderStreak();
+}
+function renderStreak() {
+  document.getElementById("streakNum").textContent = streakState.count;
+}
+
+/* ---------- 3. Build the pages ---------- */
+const feed = document.getElementById("feed");
+const BADGE_LABEL = { classic: "Classic Wisdom", modern: "Modern Voice" };
+
+function shuffled(arr) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function showToast(el, msg) {
+  el.textContent = msg;
+  clearTimeout(el._t);
+  el._t = setTimeout(() => { el.textContent = ""; }, 2600);
+}
+
+// Legacy clipboard copy for contexts where the async Clipboard API is blocked
+// (e.g. file://). Returns true on success.
+function copyViaTextarea(text) {
+  try {
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.style.position = "fixed";
+    ta.style.opacity = "0";
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    const ok = document.execCommand("copy");
+    document.body.removeChild(ta);
+    return ok;
+  } catch (e) { return false; }
+}
+
+function buildPage(item, index) {
+  const page = document.createElement("section");
+  page.className = "page";
+
+  const card = document.createElement("div");
+  card.className = "card";
+
+  const badge = document.createElement("span");
+  badge.className = "badge " + item.era;
+  badge.textContent = BADGE_LABEL[item.era];
+  card.appendChild(badge);
+
+  const quote = document.createElement("p");
+  quote.className = "quote";
+  let lang = "en";
+  quote.textContent = "“" + item.en + "”";
+  card.appendChild(quote);
+
+  const author = document.createElement("p");
+  author.className = "author";
+  author.textContent = "— " + item.author;
+  card.appendChild(author);
+
+  // controls
+  const controls = document.createElement("div");
+  controls.className = "controls";
+
+  // VI / EN translate toggle
+  const langBtn = document.createElement("button");
+  langBtn.className = "btn";
+  langBtn.innerHTML = "🌐 <span>Tiếng Việt</span>";
+  langBtn.addEventListener("click", () => {
+    lang = lang === "en" ? "vi" : "en";
+    quote.textContent = "“" + (lang === "en" ? item.en : item.vi) + "”";
+    langBtn.querySelector("span").textContent = lang === "en" ? "Tiếng Việt" : "English";
+  });
+  controls.appendChild(langBtn);
+
+  // Share
+  const shareBtn = document.createElement("button");
+  shareBtn.className = "btn";
+  shareBtn.innerHTML = "🔗 <span>Share</span>";
+  controls.appendChild(shareBtn);
+
+  // Stars
+  const stars = document.createElement("div");
+  stars.className = "stars";
+  function paint(v) { [...stars.children].forEach((s, i) => s.classList.toggle("on", i < v)); }
+  for (let v = 1; v <= 5; v++) {
+    const star = document.createElement("span");
+    star.className = "star";
+    star.textContent = "★";
+    star.addEventListener("mouseenter", () => paint(v));
+    star.addEventListener("mouseleave", () => paint(ratings[item.id] || 0));
+    star.addEventListener("click", () => {
+      ratings[item.id] = v;
+      saveJSON(RATINGS_KEY, ratings);
+      paint(v);
+      registerEngagement();
+      showToast(toast, `Rated ${v}/5 ★`);
+    });
+    stars.appendChild(star);
+  }
+  paint(ratings[item.id] || 0);
+  controls.appendChild(stars);
+
+  card.appendChild(controls);
+
+  const toast = document.createElement("div");
+  toast.className = "toast";
+  card.appendChild(toast);
+
+  // Share behavior: native share sheet → clipboard API → execCommand → manual.
+  shareBtn.addEventListener("click", async () => {
+    const text = `“${lang === "en" ? item.en : item.vi}” — ${item.author}`;
+    // 1) Native share sheet (mobile / supported browsers)
+    try {
+      if (navigator.share) { await navigator.share({ title: "Daily Spark", text }); return; }
+    } catch (e) { if (e && e.name === "AbortError") return; /* user cancelled */ }
+    // 2) Async Clipboard API (works on https / localhost with focus)
+    try {
+      await navigator.clipboard.writeText(text);
+      showToast(toast, "Copied to clipboard!");
+      return;
+    } catch (e) { /* fall through */ }
+    // 3) Legacy execCommand copy (works on file:// and older browsers)
+    if (copyViaTextarea(text)) { showToast(toast, "Copied to clipboard!"); return; }
+    // 4) Last resort: show the text so the user can copy it by hand
+    showToast(toast, "Copy this: " + text);
+  });
+
+  page.appendChild(card);
+
+  // Scroll hint only on the very first page.
+  if (index === 0) {
+    const hint = document.createElement("div");
+    hint.className = "hint";
+    hint.innerHTML = "Scroll for more · Vuốt để xem thêm<span class='chev'>⌄</span>";
+    page.appendChild(hint);
+  }
+
+  return page;
+}
+
+function buildEndPage() {
+  const page = document.createElement("section");
+  page.className = "page";
+  const card = document.createElement("div");
+  card.className = "card end";
+  card.innerHTML = "<h2>🌿 Keep climbing</h2><p>You've reached the end of today's trail.</p>";
+  const btn = document.createElement("button");
+  btn.className = "btn";
+  btn.style.marginTop = "22px";
+  btn.innerHTML = "↑ <span>Back to top</span>";
+  btn.addEventListener("click", () => feed.scrollTo({ top: 0, behavior: "smooth" }));
+  card.appendChild(btn);
+  page.appendChild(card);
+  return page;
+}
+
+function render() {
+  const order = shuffled(QUOTES);
+  const frag = document.createDocumentFragment();
+  order.forEach((item, i) => frag.appendChild(buildPage(item, i)));
+  frag.appendChild(buildEndPage());
+  feed.appendChild(frag);
+}
+
+/* ---------- 4. Init ---------- */
+reconcileStreakOnLoad();
+render();
+</script>
+</body>
+</html>
